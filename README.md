@@ -4,11 +4,16 @@ Spring Boot / Java 17 / PostgreSQL. Backend-only repository.
 
 ## Deployment limitation
 
-The entire src/main/resources directory is intentionally excluded from Git, including application configuration, database migrations and AI prompts. These files remain only in the local workspace. A checkout of this branch is not a complete deployable application. The Render instructions below require those resources to be supplied separately before building. Do not deploy this source snapshot as-is, or run migrations from it against a database.
+Application configuration, database migrations and AI prompts are intentionally excluded from Git. Maven loads them from ../backend-resources (a sibling of the backend checkout), then packages them into the JAR. Keep this directory outside Git and do not place literal passwords or API keys in it; use environment variables for credentials.
+
+Local layout: AppTiengTrung/backend/pom.xml and AppTiengTrung/backend-resources/application.properties, db/migration/, prompts/, static/, templates/. To use a different location, build with ./mvnw -Dapp.resources.directory=/absolute/path/to/backend-resources clean package. Rebuild after changing these resources; the packaged JAR reads its bundled copy.
+
+A Git checkout intentionally contains no private resources. On Render, the Docker image loads configuration and the tutor prompt from runtime Secret Files (see below). Run database migrations separately from a trusted local build that includes the external resources; never run migration mode from the resource-free cloud image.
 
 ## Render
 Docker service: Root Directory blank (repository root), Dockerfile ./Dockerfile, Docker Context .
 Set SPRING_PROFILES_ACTIVE=render, DB_JDBC_URL, DB_USERNAME, DB_PASSWORD and FRONTEND_ORIGIN in Render environment settings. Do not commit credentials.
+Add two Secret Files under Environment: app-config.properties (the combined local application.properties and application-render.properties configuration) and tutor-v1.txt (from backend-resources/prompts/tutor-v1.txt). Docker loads them at /etc/secrets/app-config.properties and /etc/secrets/tutor-v1.txt. They are not copied into the image or committed to Git. Keep spring.flyway.enabled=false in the runtime configuration. The Docker user belongs to group 1000 so it can read Render-mounted secret files.
 Health check: /api/v1/lessons. Run schema migrations separately before starting the runtime service.
 
 ## Build and test

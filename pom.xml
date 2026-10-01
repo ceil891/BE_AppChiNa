@@ -28,6 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>17</java.version>
+		<app.resources.directory>${project.basedir}/../backend-resources</app.resources.directory>
 	</properties>
 	<dependencies>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-mail</artifactId></dependency>
@@ -83,7 +84,7 @@
 			<id>beta</id>
 			<build>
 				<resources>
-					<resource><directory>src/main/resources</directory></resource>
+					<resource><directory>${app.resources.directory}</directory><filtering>false</filtering></resource>
 					<resource><directory>../frontend/dist</directory><targetPath>static</targetPath></resource>
 				</resources>
 			</build>
@@ -91,6 +92,9 @@
 	</profiles>
 
 	<build>
+		<resources>
+			<resource><directory>${app.resources.directory}</directory><filtering>false</filtering></resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
