@@ -1,14 +1,13 @@
 package com.chineselearning;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.chineselearning.modules.lesson.service.LessonService;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import tools.jackson.databind.ObjectMapper;
 import java.net.http.HttpResponse;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -17,6 +16,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class LessonApiTests {
     @LocalServerPort int port;
     @Autowired LessonService lessons;
+    @Autowired JdbcClient jdbc;
+    @Autowired ObjectMapper mapper;
+    AdminUserApiTests api;
+    AdminUserApiTests.Client learner;
+    @BeforeEach void setup() throws Exception {
+        api=new AdminUserApiTests();api.port=port;api.jdbc=jdbc;api.mapper=mapper;
+        learner=api.login(api.createGraduate(api.admin()),AdminUserApiTests.PASSWORD);
+    }
+    @AfterEach void cleanup(){api.cleanup();}
 
     @Test void migrationsProvideTwelveLessonsAndPreserveOriginalWords() {
         assertThat(lessons.list()).hasSize(12);
@@ -44,7 +52,6 @@ class LessonApiTests {
     }
 
     private HttpResponse<String> request(String path) throws Exception {
-        return HttpClient.newHttpClient().send(HttpRequest.newBuilder(
-            URI.create("http://127.0.0.1:" + port + path)).build(), HttpResponse.BodyHandlers.ofString());
+        return learner.get(path.substring("/api/v1".length()));
     }
 }

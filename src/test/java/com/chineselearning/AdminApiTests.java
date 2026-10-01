@@ -25,6 +25,8 @@ class AdminApiTests {
 
     @Test void coursesRespectDraftsOrderVersionsAndPublication() throws Exception {
         var client=admin();var guest=new Client();
+        var student=new Client();String studentEmail=register(student);
+        assertThat(student.write("POST","/auth/login",Map.of("email",studentEmail,"password",PASSWORD)).statusCode()).isEqualTo(200);
         long a=json(client.write("POST","/admin/lessons",lesson("Course A",99101,List.of()))).get("lesson").get("id").asLong();lessonIds.add(a);
         long b=json(client.write("POST","/admin/lessons",lesson("Course B",99102,List.of()))).get("lesson").get("id").asLong();lessonIds.add(b);
         var body=Map.of("title","Khóa kiểm thử","description","Lộ trình","lessonIds",List.of(b,a),"version",0);
@@ -33,7 +35,8 @@ class AdminApiTests {
         long id=json(created).get("course").get("id").asLong();
         try {
             assertThat(json(created).get("lessons").get(0).get("id").asLong()).isEqualTo(b);
-            assertThat(guest.get("/courses/"+id).statusCode()).isEqualTo(404);
+            assertThat(guest.get("/courses/"+id).statusCode()).isEqualTo(403);
+            assertThat(student.get("/courses/"+id).statusCode()).isEqualTo(404);
             assertThat(guest.get("/admin/courses").statusCode()).isEqualTo(401);
             assertThat(client.raw("PUT","/admin/courses/"+id,body,null).statusCode()).isEqualTo(403);
             var invalid=Map.of("title","Invalid","description","","lessonIds",List.of(a,a),"version",0);
@@ -41,10 +44,10 @@ class AdminApiTests {
             assertThat(client.write("PUT","/admin/courses/"+id,body).statusCode()).isEqualTo(200);
             assertThat(client.write("PUT","/admin/courses/"+id,body).statusCode()).isEqualTo(409);
             assertThat(client.write("PATCH","/admin/courses/"+id+"/publication",Map.of("published",true,"version",1)).statusCode()).isEqualTo(200);
-            assertThat(json(guest.get("/courses/"+id)).get("lessons").get(0).get("id").asLong()).isEqualTo(b);
+            assertThat(json(student.get("/courses/"+id)).get("lessons").get(0).get("id").asLong()).isEqualTo(b);
             assertThat(client.write("DELETE","/admin/courses/"+id+"?version=2",null).statusCode()).isEqualTo(409);
             assertThat(client.write("PATCH","/admin/lessons/"+b+"/publication",Map.of("published",false)).statusCode()).isEqualTo(200);
-            assertThat(json(guest.get("/courses/"+id)).get("lessons").size()).isEqualTo(1);
+            assertThat(json(student.get("/courses/"+id)).get("lessons").size()).isEqualTo(1);
             assertThat(client.write("PATCH","/admin/courses/"+id+"/publication",Map.of("published",false,"version",2)).statusCode()).isEqualTo(200);
             assertThat(client.write("PATCH","/admin/courses/"+id+"/publication",Map.of("published",true,"version",3)).statusCode()).isEqualTo(409);
             assertThat(client.write("DELETE","/admin/courses/"+id+"?version=3",null).statusCode()).isEqualTo(204);
@@ -175,7 +178,7 @@ class AdminApiTests {
     String register(Client c)throws Exception{
         String email="admin-test-"+UUID.randomUUID()+"@example.test";emails.add(email);
         var result=c.write("POST","/auth/register",Map.of("email",email,"password",PASSWORD,"displayName","Admin test"));
-        assertThat(result.statusCode()).withFailMessage(result.body()).isEqualTo(201);return email;
+        assertThat(result.statusCode()).withFailMessage(result.body()).isEqualTo(201);FoundationTestSupport.graduate(jdbc,email);return email;
     }
     Client admin()throws Exception{
         var c=new Client();String email=register(c);

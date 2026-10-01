@@ -35,7 +35,7 @@ class AdminSkillApiTests {
         String id=api.json(response).get("exercise").get("id").asText();ids.add(id);return id;
     }
     @Test void allFourSkillsPublishHideAndKeepAttemptSnapshots() throws Exception {
-        var admin=api.admin();var learner=api.login(api.create(admin,"USER"),AdminUserApiTests.PASSWORD);
+        var admin=api.admin();var learner=api.login(api.createGraduate(admin),AdminUserApiTests.PASSWORD);
         for(String skill:List.of("LISTENING","SPEAKING","READING","WRITING")) {
             String id=create(admin,skill),base="/admin/skills/"+skill+"/"+id;
             assertThat(learner.get("/skills/exercises").body()).doesNotContain(id);
@@ -79,7 +79,7 @@ class AdminSkillApiTests {
     }
     @Test void editorialAndLearnerResultsPermissionsAreSeparateAndCsrfIsRequired() throws Exception {
         var admin=api.admin();String id=create(admin,"WRITING"),base="/admin/skills/WRITING/"+id;
-        var learner=api.login(api.create(admin,"USER"),AdminUserApiTests.PASSWORD);
+        var learner=api.login(api.createGraduate(admin),AdminUserApiTests.PASSWORD);
         api.status(learner.get(base),403);api.status(learner.write("POST","/admin/skills/WRITING",input("WRITING",0,"你好")),403);
         api.status(admin.raw("PUT",base,input("WRITING",0,"你好"),null),403);
         String role="SKILL_EDITOR_"+UUID.randomUUID().toString().replace("-","").substring(0,12).toUpperCase(Locale.ROOT);

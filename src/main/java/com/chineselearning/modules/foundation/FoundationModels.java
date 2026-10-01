@@ -25,7 +25,8 @@ public final class FoundationModels {
     public record Input(@NotNull @Valid Content content,@Min(1) @Max(10000) int position,@NotNull @PositiveOrZero Long version) {}
     public record Publication(@NotNull @PositiveOrZero Long version,@NotNull Boolean published) {}
     public record Detail(Content content,int position,boolean published,long version) {}
-    public record Card(String slug,String title,String subtitle,int minutes,String symbol,int position,long version) {}
+    public record Card(String slug,String title,String subtitle,int minutes,String symbol,int position,long version,
+        boolean locked,String prerequisiteSlug,String prerequisiteTitle,boolean completed) {}
     public record PublicQuestion(String prompt,List<String> options) {}
     public record Lesson(String slug,String title,String subtitle,int minutes,String symbol,List<Section> sections,
         List<Group> groups,List<Example> examples,List<PublicQuestion> questions,boolean toneChart,long version) {}

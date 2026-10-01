@@ -37,12 +37,45 @@ public class FoundationService {
             .param("slug",slug).query((rs,n)->new Detail(mapper.readValue(rs.getString(1),Content.class),rs.getInt(2),rs.getBoolean(3),rs.getLong(4)))
             .optional().orElseThrow(()->problem(HttpStatus.NOT_FOUND,"Không tìm thấy bài nhập môn hoặc bài chưa được xuất bản."));
     }
-    public List<Card> list() {
-        return jdbc.sql("SELECT content,position,version FROM foundation_lessons WHERE published=true ORDER BY position,slug")
-            .query((rs,n)->{var c=mapper.readValue(rs.getString(1),Content.class);return new Card(c.slug(),c.title(),c.subtitle(),c.minutes(),c.symbol(),rs.getInt(2),rs.getLong(3));}).list();
+    public List<Card> list(String actor) {
+        UUID id=actor==null?null:users.current(actor).id();
+        var completed=new HashSet<>(jdbc.sql("SELECT slug FROM foundation_progress WHERE user_id=:owner AND completed_at IS NOT NULL")
+            .param("owner",id).query(String.class).list());
+        var lessons=jdbc.sql("SELECT content,position,published,version FROM foundation_lessons WHERE published=true ORDER BY position,slug")
+            .query((rs,n)->new Detail(mapper.readValue(rs.getString(1),Content.class),rs.getInt(2),true,rs.getLong(4))).list();
+        var result=new ArrayList<Card>();
+        Content prerequisite=null;
+        for(var lesson:lessons) {
+            var c=lesson.content();
+            result.add(new Card(c.slug(),c.title(),c.subtitle(),c.minutes(),c.symbol(),lesson.position(),lesson.version(),
+                prerequisite!=null,prerequisite==null?null:prerequisite.slug(),prerequisite==null?null:prerequisite.title(),completed.contains(c.slug())));
+            if(prerequisite==null && !completed.contains(c.slug()))prerequisite=c;
+        }
+        return result;
     }
-    public Lesson get(String slug) {
+    private void requireUnlocked(UUID id,String slug) {
+        var prerequisite=jdbc.sql("""
+            SELECT earlier.content->>'title' FROM foundation_lessons target
+            JOIN foundation_lessons earlier ON (earlier.position,earlier.slug)<(target.position,target.slug)
+            WHERE target.slug=:slug AND earlier.published
+            AND NOT EXISTS(SELECT 1 FROM foundation_progress p WHERE p.user_id=:owner AND p.slug=earlier.slug AND p.completed_at IS NOT NULL)
+            ORDER BY earlier.position,earlier.slug LIMIT 1
+            """).param("owner",id).param("slug",slug).query(String.class).optional();
+        if(prerequisite.isPresent())throw problem(HttpStatus.FORBIDDEN,
+            "Hoàn thành bài \""+prerequisite.get()+"\" trước khi mở bài này."+(id==null?" Đăng nhập để lưu tiến độ.":""));
+    }
+    public boolean completedCurriculum(UUID id) {
+        if(id==null)return false;
+        return jdbc.sql("""
+            SELECT EXISTS(SELECT 1 FROM foundation_lessons WHERE published)
+            AND NOT EXISTS(SELECT 1 FROM foundation_lessons f WHERE f.published
+                AND NOT EXISTS(SELECT 1 FROM foundation_progress p
+                    WHERE p.user_id=:owner AND p.slug=f.slug AND p.completed_at IS NOT NULL))
+            """).param("owner",id).query(Boolean.class).single();
+    }
+    public Lesson get(String actor,String slug) {
         var d=load(slug,true,"");var c=d.content();
+        requireUnlocked(actor==null?null:users.current(actor).id(),slug);
         return new Lesson(c.slug(),c.title(),c.subtitle(),c.minutes(),c.symbol(),c.sections(),c.groups(),c.examples(),
             c.questions().stream().map(q->new PublicQuestion(q.prompt(),q.options())).toList(),c.toneChart(),d.version());
     }
@@ -99,6 +132,7 @@ public class FoundationService {
     private void lockOwner(UUID id) { jdbc.sql("SELECT id FROM users WHERE id=:id FOR UPDATE").param("id",id).query(UUID.class).single(); }
     @Transactional public Progress bookmark(String actor,String slug,Bookmark input) {
         UUID id=owner(actor);lockOwner(id);var lesson=load(slug,true," FOR SHARE");version(lesson,input.lessonVersion());
+        requireUnlocked(id,slug);
         if(input.sectionIndex()>=lesson.content().sections().size())throw problem(HttpStatus.BAD_REQUEST,"Vị trí đọc không hợp lệ.");
         var existing=progressFor(id,slug);
         long current=existing.isEmpty()?0:existing.get(0).version();
@@ -122,7 +156,7 @@ public class FoundationService {
                 }).optional();
             if(replay.isPresent())return replay.get();
         }
-        var d=load(slug,true," FOR SHARE");version(d,input.lessonVersion());var c=d.content();
+        var d=load(slug,true," FOR SHARE");requireUnlocked(id,slug);version(d,input.lessonVersion());var c=d.content();
         if(input.answers().size()!=c.questions().size())throw problem(HttpStatus.BAD_REQUEST,"Hãy trả lời đủ các câu hỏi.");
         var review=new ArrayList<Review>();int correct=0;
         for(int i=0;i<c.questions().size();i++) {

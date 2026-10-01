@@ -66,7 +66,7 @@ class SecurityHardeningTests {
         }
     }
     @Test void everyMappedAdminEndpointRejectsOrdinaryUsers() throws Exception {
-        var admin=api.admin();var user=api.login(api.create(admin,"USER"),AdminUserApiTests.PASSWORD);
+        var admin=api.admin();var user=api.login(api.createGraduate(admin),AdminUserApiTests.PASSWORD);
         int checked=0;
         for(var mapping:mappings.getHandlerMethods().keySet()) for(String pattern:mapping.getPatternValues()) {
             if(!pattern.startsWith("/api/v1/admin/"))continue;
@@ -79,7 +79,7 @@ class SecurityHardeningTests {
         assertThat(checked).isGreaterThan(50);
     }
     @Test void expiredIdleAndAbsoluteSessionsCannotBeRevived() throws Exception {
-        var admin=api.admin();var account=api.create(admin,"USER");
+        var admin=api.admin();var account=api.createGraduate(admin);
         var learner=api.login(account,AdminUserApiTests.PASSWORD);
         String owner=account.get("id").asText();
         jdbc.sql("UPDATE account_sessions SET last_seen_at=CURRENT_TIMESTAMP-INTERVAL '31 minutes' WHERE user_id=:owner").param("owner",UUID.fromString(owner)).update();
@@ -92,7 +92,7 @@ class SecurityHardeningTests {
         assertThat(admin.get("/admin/users").statusCode()).isEqualTo(401);
     }
     @Test void malformedInputAndSqlPayloadsDoNotLeakOrEscalate() throws Exception {
-        var admin=api.admin();var account=api.create(admin,"USER");var user=api.login(account,AdminUserApiTests.PASSWORD);
+        var admin=api.admin();var account=api.createGraduate(admin);var user=api.login(account,AdminUserApiTests.PASSWORD);
         var response=user.write("PATCH","/profile",Map.of("displayName","Changed","role","ADMIN"));
         assertThat(response.statusCode()).isEqualTo(400);
         assertThat(api.json(user.get("/auth/me")).get("role").asText()).isEqualTo("USER");

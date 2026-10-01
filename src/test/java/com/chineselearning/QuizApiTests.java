@@ -26,6 +26,7 @@ class QuizApiTests {
     AdminUserApiTests.Client learner()throws Exception{
         var client=api.new Client();String email=api.email();
         api.status(client.write("POST","/auth/register",Map.of("email",email,"password",AdminUserApiTests.PASSWORD,"displayName","Quiz test")),201);
+        FoundationTestSupport.graduate(api.jdbc,email);
         api.status(client.write("POST","/auth/login",Map.of("email",email,"password",AdminUserApiTests.PASSWORD)),200);return client;
     }
     Map<String,Object> startInput(long set,int count,UUID key){return Map.of("setId",set,"questionCount",count,"requestId",key);}
@@ -155,7 +156,7 @@ class QuizApiTests {
         assertThat(result.get("attempt").get("title").asText()).isEqualTo("Snapshot fixture");
     }
     @Test void ownershipLogoutAndAccountDeletionProtectQuizData()throws Exception{
-        var admin=api.admin();var accountA=api.create(admin,"USER");var accountB=api.create(admin,"USER");
+        var admin=api.admin();var accountA=api.createGraduate(admin);var accountB=api.createGraduate(admin);
         var a=api.login(accountA,AdminUserApiTests.PASSWORD);var b=api.login(accountB,AdminUserApiTests.PASSWORD);
         var data=start(a,5);var q=data.get("questions").get(0);var payload=answerInput(data,q,correct(q),UUID.randomUUID());
         api.status(b.get(path(data)),404);api.status(b.write("PUT",path(data)+"/answers",payload),404);

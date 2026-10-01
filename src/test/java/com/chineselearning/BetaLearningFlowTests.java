@@ -29,7 +29,7 @@ class BetaLearningFlowTests {
         try {
             var csrf=api.new Client().get("/auth/csrf");
             assertThat(csrf.headers().allValues("set-cookie").toString()).contains("Secure","HttpOnly","SameSite=Lax");
-            var admin=api.admin();var profile=api.create(admin,"USER");var second=api.create(admin,"USER");
+            var admin=api.admin();var profile=api.createGraduate(admin);var second=api.createGraduate(admin);
             var a=api.login(profile,AdminUserApiTests.PASSWORD);var b=api.login(second,AdminUserApiTests.PASSWORD);
             var lesson=api.json(a.get("/lessons/1"));
             var record=api.json(a.write("POST","/learning-records",Map.of("lessonId",1,"note","Ghi chú riêng cho phiên beta")));

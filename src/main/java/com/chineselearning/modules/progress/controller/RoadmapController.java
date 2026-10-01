@@ -11,17 +11,23 @@ import java.util.*;
 public class RoadmapController {
     private final JdbcClient jdbc;
     private final UserService users;
-    public RoadmapController(JdbcClient jdbc,UserService users) { this.jdbc=jdbc;this.users=users; }
+    private final com.chineselearning.modules.foundation.FoundationService foundations;
+    public RoadmapController(JdbcClient jdbc,UserService users,com.chineselearning.modules.foundation.FoundationService foundations) { this.jdbc=jdbc;this.users=users;this.foundations=foundations; }
     public record Step(String stage,String title,String path,String status) {}
     @GetMapping public List<Step> list(Principal principal) {
         UUID owner=principal==null?null:users.current(principal.getName()).id();
+        boolean foundationComplete=foundations.completedCurriculum(owner);
         var result=new ArrayList<Step>();
         result.addAll(jdbc.sql("""
             SELECT CASE WHEN f.slug='ghep-am' THEN 'Lời chào' ELSE 'Pinyin' END AS stage,
             f.content->>'title' AS title,'/foundations/'||f.slug AS path,
-            CASE WHEN p.completed_at IS NOT NULL THEN 'COMPLETED' WHEN p.user_id IS NOT NULL THEN 'STARTED' ELSE 'NEW' END AS status
+            CASE WHEN EXISTS(SELECT 1 FROM foundation_lessons earlier
+                WHERE earlier.published AND (earlier.position,earlier.slug)<(f.position,f.slug)
+                AND NOT EXISTS(SELECT 1 FROM foundation_progress previous
+                    WHERE previous.user_id=:owner AND previous.slug=earlier.slug AND previous.completed_at IS NOT NULL)) THEN 'LOCKED'
+            WHEN p.completed_at IS NOT NULL THEN 'COMPLETED' WHEN p.user_id IS NOT NULL THEN 'STARTED' ELSE 'NEW' END AS status
             FROM foundation_lessons f LEFT JOIN foundation_progress p ON p.slug=f.slug AND p.user_id=:owner
-            WHERE f.published ORDER BY CASE WHEN f.slug='ghep-am' THEN 1 ELSE 0 END,f.position,f.slug
+            WHERE f.published ORDER BY f.position,f.slug
             """).param("owner",owner).query(Step.class).list());
         result.addAll(jdbc.sql("""
             SELECT 'Từ vựng chủ đề' AS stage,l.title,'/lessons/'||l.id AS path,
@@ -40,6 +46,7 @@ public class RoadmapController {
             FROM skill_exercises e WHERE e.published
             ORDER BY CASE e.skill WHEN 'LISTENING' THEN 1 WHEN 'SPEAKING' THEN 2 WHEN 'READING' THEN 3 ELSE 4 END,e.id
             """).param("owner",owner).query(Step.class).list());
-        return result;
+        return result.stream().map(step -> !foundationComplete && !step.path().startsWith("/foundations/")
+            ?new Step(step.stage(),step.title(),step.path(),"LOCKED"):step).toList();
     }
 }

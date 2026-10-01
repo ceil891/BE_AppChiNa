@@ -15,7 +15,7 @@ public class AccountSecurityController {
     private final AccountRecovery recovery;private final AccountSessions sessions;private final AuthThrottle throttle;
     public AccountSecurityController(AccountRecovery recovery,AccountSessions sessions,AuthThrottle throttle) { this.recovery=recovery;this.sessions=sessions;this.throttle=throttle; }
     public record Email(@NotBlank @jakarta.validation.constraints.Email @Size(max=254) String email) {}
-    public record Reset(@NotBlank @Pattern(regexp="[A-Za-z0-9_-]{43}") String token,@NotBlank @Size(min=12,max=128) String password) {}
+    public record Reset(@NotBlank @Pattern(regexp="[A-Za-z0-9_-]{43}") String token,@NotBlank @Size(min=8,max=128) String password) {}
     public record Verify(@NotBlank @Pattern(regexp="[A-Za-z0-9_-]{43}") String token) {}
     public record Status(boolean verified) {}
     @PostMapping("/forgot") public Map<String,String> forgot(@Valid @RequestBody Email body,HttpServletRequest req) {

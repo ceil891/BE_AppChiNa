@@ -1,6 +1,6 @@
 package com.chineselearning;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -19,6 +19,13 @@ class VocabularyApiTests {
     @LocalServerPort int port;
     @Autowired ObjectMapper mapper;
     @Autowired JdbcClient jdbc;
+    AdminUserApiTests api;
+    AdminUserApiTests.Client learner;
+    @BeforeEach void setup() throws Exception {
+        api=new AdminUserApiTests();api.port=port;api.jdbc=jdbc;api.mapper=mapper;
+        learner=api.login(api.createGraduate(api.admin()),AdminUserApiTests.PASSWORD);
+    }
+    @AfterEach void cleanup(){api.cleanup();}
 
     @Test void searchesHanziVietnameseAndPinyinWithOrWithoutTones() throws Exception {
         for (var query : new String[]{"你好", "nǐ hǎo", "NI HAO", "Xin chào"}) {
@@ -74,6 +81,6 @@ class VocabularyApiTests {
     String encode(String text) { return URLEncoder.encode(text, StandardCharsets.UTF_8); }
     JsonNode json(HttpResponse<String> response) { return mapper.readTree(response.body()); }
     HttpResponse<String> get(String suffix) throws Exception {
-        return HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/v1/vocabulary" + suffix)).build(), HttpResponse.BodyHandlers.ofString());
+        return learner.get("/vocabulary"+suffix);
     }
 }

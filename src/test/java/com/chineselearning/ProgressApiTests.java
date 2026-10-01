@@ -145,7 +145,7 @@ class ProgressApiTests {
         assertThat(d.get("totals").get("completedLessons").asInt()).isEqualTo(3);assertThat(d.get("streak").get("activeDays").asInt()).isEqualTo(1);
     }
     @Test void deletingAnAccountCascadesOnlyItsEvents()throws Exception {
-        var admin=api.admin();var accountA=api.create(admin,"USER");var a=api.login(accountA,AdminUserApiTests.PASSWORD);var b=learner();
+        var admin=api.admin();var accountA=api.createGraduate(admin);var a=api.login(accountA,AdminUserApiTests.PASSWORD);var b=learner();
         complete(a,1);complete(b,2);var owner=owner(a);
         api.status(admin.write("DELETE","/admin/users/"+owner,null),204);assertThat(events(owner)).isZero();
         assertThat(dashboard(b).get("totals").get("completedLessons").asInt()).isEqualTo(1);api.status(a.get("/progress"),401);

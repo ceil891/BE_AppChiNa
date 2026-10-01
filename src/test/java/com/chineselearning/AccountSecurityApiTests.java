@@ -62,7 +62,7 @@ class AccountSecurityApiTests {
         api.status(a.write("POST","/auth/logout",null),204);api.status(a.get("/account/sessions"),401);
     }
     @Test void roadmapUsesEditorialOrderAndResumesOnlyTheOwnersSkillAttempt() throws Exception {
-        var admin=api.admin();var account=api.create(admin,"USER");var user=api.login(account,AdminUserApiTests.PASSWORD);
+        var admin=api.admin();var account=api.createGraduate(admin);var user=api.login(account,AdminUserApiTests.PASSWORD);
         var other=api.login(api.create(admin,"USER"),AdminUserApiTests.PASSWORD);var guest=api.new Client();
         var exercises=api.json(user.get("/skills/exercises"));
         String exercise=exercises.get(0).get("id").asText(), skill=exercises.get(0).get("skill").asText();

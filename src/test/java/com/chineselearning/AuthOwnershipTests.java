@@ -145,6 +145,7 @@ class AuthOwnershipTests {
         createdEmails.add(email);
         var response=b.write("POST","/auth/register",Map.of("email",email,"password",PASSWORD,"displayName","Test account"));
         assertThat(response.statusCode()).withFailMessage(response.body()).isEqualTo(201);
+        FoundationTestSupport.graduate(jdbc,email);
         return email;
     }
     void login(Browser b,String email) throws Exception {

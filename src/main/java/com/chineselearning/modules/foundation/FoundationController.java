@@ -12,8 +12,8 @@ import java.util.List;
 public class FoundationController {
     private final FoundationService service;
     public FoundationController(FoundationService service) { this.service=service; }
-    @GetMapping("/foundations") public List<Card> list() { return service.list(); }
-    @GetMapping("/foundations/{slug}") public Lesson get(@PathVariable String slug) { return service.get(slug); }
+    @GetMapping("/foundations") public List<Card> list(Principal p) { return service.list(p==null?null:p.getName()); }
+    @GetMapping("/foundations/{slug}") public Lesson get(Principal p,@PathVariable String slug) { return service.get(p==null?null:p.getName(),slug); }
     @PostMapping("/foundations/{slug}/check") public Result check(Principal p,@PathVariable String slug,@Valid @RequestBody Submit body) { return service.submit(p==null?null:p.getName(),slug,body); }
     @GetMapping("/foundation-progress") public List<Progress> progress(Principal p) { return service.progress(p.getName()); }
     @PutMapping("/foundation-progress/{slug}") public Progress bookmark(Principal p,@PathVariable String slug,@Valid @RequestBody Bookmark body) { return service.bookmark(p.getName(),slug,body); }

@@ -33,7 +33,7 @@ class AdminUserApiTests {
     @Test void accountManagementRequiresAdminAndCsrf() throws Exception {
         var anonymous=new Client();
         status(anonymous.get("/admin/users"),401);
-        var admin=admin(); var learner=create(admin,"USER");
+        var admin=admin(); var learner=createGraduate(admin);
         var client=login(learner,PASSWORD);
         String path="/admin/users/"+learner.get("id").asText();
         status(client.get("/admin/users"),403); status(client.get(path),403);
@@ -47,7 +47,7 @@ class AdminUserApiTests {
     }
 
     @Test void crudSearchPaginationAndResponsesKeepPasswordsPrivate() throws Exception {
-        var admin=admin(); var target=create(admin,"USER");
+        var admin=admin(); var target=createGraduate(admin);
         String id=target.get("id").asText(), email=target.get("email").asText(), path="/admin/users/"+id;
         assertThat(target.get("enabled").asBoolean()).isTrue();
         assertThat(target.get("learningRecordCount").asLong()).isZero();
@@ -68,7 +68,7 @@ class AdminUserApiTests {
     }
 
     @Test void invalidAndDuplicateInputsHaveProblemDetailsWithoutChangingAccounts() throws Exception {
-        var admin=admin(); var target=create(admin,"USER");
+        var admin=admin(); var target=createGraduate(admin);
         String path="/admin/users/"+target.get("id").asText();
         var invalid=admin.write("POST","/admin/users",Map.of("email","invalid","displayName"," ","password","short","role","USER"));
         status(invalid,400);
@@ -91,7 +91,7 @@ class AdminUserApiTests {
     }
 
     @Test void lockingAndUnlockingNeverResurrectsAnOldSession() throws Exception {
-        var admin=admin(); var target=create(admin,"USER");
+        var admin=admin(); var target=createGraduate(admin);
         String path="/admin/users/"+target.get("id").asText();
         var active=login(target,PASSWORD); var dormant=login(target,PASSWORD);
         status(admin.write("PATCH",path+"/status",Map.of("enabled",false)),200);
@@ -107,7 +107,7 @@ class AdminUserApiTests {
     }
 
     @Test void passwordAndRoleChangesRevokeEveryExistingSession() throws Exception {
-        var admin=admin(); var target=create(admin,"USER");
+        var admin=admin(); var target=createGraduate(admin);
         String path="/admin/users/"+target.get("id").asText();
         var a=login(target,PASSWORD); var b=login(target,PASSWORD);
         status(admin.write("POST",path+"/password",Map.of("password",NEW_PASSWORD)),204);
@@ -125,7 +125,7 @@ class AdminUserApiTests {
     }
 
     @Test void deletingAccountOnlyDeletesItsDataAndSameEmailCannotReuseOldSession() throws Exception {
-        var admin=admin(); var a=create(admin,"USER"); var b=create(admin,"USER");
+        var admin=admin(); var a=createGraduate(admin); var b=createGraduate(admin);
         var clientA=login(a,PASSWORD); var clientB=login(b,PASSWORD);
         var dormant=login(a,PASSWORD);
         String path="/admin/users/"+a.get("id").asText();
@@ -178,6 +178,9 @@ class AdminUserApiTests {
     JsonNode create(Client admin,String role)throws Exception{
         var result=admin.write("POST","/admin/users",Map.of("email",email(),"displayName","Test learner","password",PASSWORD,"role",role));
         status(result,201);return json(result);
+    }
+    JsonNode createGraduate(Client admin)throws Exception{
+        var account=create(admin,"USER");FoundationTestSupport.graduate(jdbc,account.get("email").asText());return account;
     }
     Client login(JsonNode account,String password)throws Exception{
         var c=new Client();status(c.write("POST","/auth/login",credentials(account,password)),200);return c;

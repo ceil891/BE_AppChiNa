@@ -24,8 +24,9 @@ public class ProgressService {
     private final FlashcardService flashcards;
     private final QuizService quizzes;
     private final Clock clock;
-    public ProgressService(LearningEventRepository events,UserService users,LessonService lessons,FlashcardService flashcards,QuizService quizzes,Clock clock) {
-        this.events=events;this.users=users;this.lessons=lessons;this.flashcards=flashcards;this.quizzes=quizzes;this.clock=clock;
+    private final com.chineselearning.modules.foundation.FoundationService foundations;
+    public ProgressService(LearningEventRepository events,UserService users,LessonService lessons,FlashcardService flashcards,QuizService quizzes,Clock clock,com.chineselearning.modules.foundation.FoundationService foundations) {
+        this.events=events;this.users=users;this.lessons=lessons;this.flashcards=flashcards;this.quizzes=quizzes;this.clock=clock;this.foundations=foundations;
     }
     @Transactional(readOnly=true,isolation=Isolation.REPEATABLE_READ)
     public Dashboard dashboard(String email) {
@@ -38,7 +39,12 @@ public class ProgressService {
         var cards=flashcards.statsForProgress(owner,now);
         var draft=quizzes.list(email,"IN_PROGRESS",0,1).items();
         NextAction next;
-        if (cards.due()>0) next=new NextAction("FLASHCARDS","Ôn thẻ đến hạn",cards.due()+" thẻ đang chờ bạn ôn lại.","/flashcards/review");
+        if (!foundations.completedCurriculum(owner)) {
+            var first=foundations.list(email).stream().filter(card -> !card.locked() && !card.completed()).findFirst();
+            next=first.map(card -> new NextAction("FOUNDATION","Tiếp tục nhập môn Pinyin",card.title(),"/foundations/"+card.slug()))
+                .orElseGet(() -> new NextAction("FOUNDATION","Lộ trình nhập môn Pinyin","Nội dung nhập môn đang được chuẩn bị.","/foundations"));
+        }
+        else if (cards.due()>0) next=new NextAction("FLASHCARDS","Ôn thẻ đến hạn",cards.due()+" thẻ đang chờ bạn ôn lại.","/flashcards/review");
         else if (!draft.isEmpty()) next=new NextAction("QUIZ","Làm tiếp Quiz",draft.get(0).title(),"/quizzes/attempts/"+draft.get(0).id());
         else {
             var lesson=allLessons.stream().filter(l -> l.wordCount()>0 && !completed.contains(l.id())).findFirst();

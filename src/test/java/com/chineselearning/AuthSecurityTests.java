@@ -40,7 +40,7 @@ class AuthSecurityTests {
     Map<String,String> change(String current,String next){return Map.of("currentPassword",current,"newPassword",next);}
 
     @Test void changingOwnPasswordRevokesEveryOldSessionAndKeepsOtherAccountAndLearning()throws Exception {
-        var admin=api.admin();var profile=api.create(admin,"USER");var other=api.create(admin,"USER");
+        var admin=api.admin();var profile=api.createGraduate(admin);var other=api.createGraduate(admin);
         var a=api.login(profile,OLD);var second=api.login(profile,OLD);var b=api.login(other,OLD);
         var record=api.json(a.write("POST","/learning-records",Map.of("lessonId",1,"note","Ghi chú trước khi đổi mật khẩu")));
         var wrong=a.write("POST","/auth/password",change("wrong-password",NEW));api.status(wrong,400);
@@ -57,7 +57,7 @@ class AuthSecurityTests {
     }
     @Test void passwordChangeRequiresSessionCsrfAndCurrentPasswordAndRejectsTargetIds()throws Exception {
         api.status(api.new Client().write("POST","/auth/password",change(OLD,NEW)),401);
-        var admin=api.admin();var profile=api.create(admin,"USER");var a=api.login(profile,OLD);
+        var admin=api.admin();var profile=api.createGraduate(admin);var a=api.login(profile,OLD);
         api.status(a.raw("POST","/auth/password",change(OLD,NEW),null),403);
         api.status(a.write("POST","/auth/password",Map.of("currentPassword",OLD,"newPassword",NEW,"userId",profile.get("id").asText())),400);
         api.status(a.write("POST","/auth/password",change(OLD,"short")),400);
@@ -65,7 +65,7 @@ class AuthSecurityTests {
         api.status(api.login(profile,OLD).get("/auth/me"),200);
     }
     @Test void concurrentPasswordChangesOnlyCommitOnce()throws Exception {
-        var admin=api.admin();var profile=api.create(admin,"USER");var a=api.login(profile,OLD);var b=api.login(profile,OLD);
+        var admin=api.admin();var profile=api.createGraduate(admin);var a=api.login(profile,OLD);var b=api.login(profile,OLD);
         UUID id=UUID.fromString(profile.get("id").asText());
         long before=jdbc.sql("SELECT session_version FROM users WHERE id=:id").param("id",id).query(Long.class).single();
         var start=new CountDownLatch(1);var pool=Executors.newFixedThreadPool(2);
@@ -81,7 +81,7 @@ class AuthSecurityTests {
         } finally {pool.shutdownNow();}
     }
     @Test void loginLimitsNormalizeEmailPersistAcrossClientsAndExpireWithoutExtendingOnRejection()throws Exception {
-        var admin=api.admin();var profile=api.create(admin,"USER");String email=profile.get("email").asText();
+        var admin=api.admin();var profile=api.createGraduate(admin);String email=profile.get("email").asText();
         for(int i=0;i<10;i++) api.status(api.new Client().write("POST","/auth/login",Map.of("email",i%2==0?"  "+email.toUpperCase(Locale.ROOT)+"  ":email,"password","wrong")),401);
         var blocked=api.new Client().write("POST","/auth/login",api.credentials(profile,OLD));api.status(blocked,429);
         assertThat(blocked.headers().firstValue("Retry-After")).contains("900");
@@ -96,7 +96,7 @@ class AuthSecurityTests {
         clock.now=clock.now.plusSeconds(890);api.status(api.login(profile,OLD).get("/auth/me"),200);
     }
     @Test void guessingCurrentPasswordIsLimitedWithoutLoggingOutOrAffectingOtherUsers()throws Exception {
-        var admin=api.admin();var profile=api.create(admin,"USER");var other=api.create(admin,"USER");
+        var admin=api.admin();var profile=api.createGraduate(admin);var other=api.createGraduate(admin);
         var a=api.login(profile,OLD);var b=api.login(other,OLD);
         for(int i=0;i<5;i++)api.status(a.write("POST","/auth/password",change("incorrect",NEW)),400);
         var blocked=a.write("POST","/auth/password",change(OLD,NEW));api.status(blocked,429);

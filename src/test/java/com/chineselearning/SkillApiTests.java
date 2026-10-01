@@ -25,6 +25,7 @@ class SkillApiTests {
     AdminUserApiTests.Client learner() throws Exception {
         var c=api.new Client();String email=api.email();
         api.status(c.write("POST","/auth/register",Map.of("email",email,"password",AdminUserApiTests.PASSWORD,"displayName","Skills test")),201);
+        FoundationTestSupport.graduate(api.jdbc,email);
         api.status(c.write("POST","/auth/login",Map.of("email",email,"password",AdminUserApiTests.PASSWORD)),200);return c;
     }
     JsonNode start(AdminUserApiTests.Client c,String exercise) throws Exception {

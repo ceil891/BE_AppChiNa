@@ -123,7 +123,7 @@ class DynamicPermissionTests {
             var created=editor.write("POST","/admin/lessons",Map.of("title","Dynamic editor test","description","Temporary","position",99888,"wordIds",List.of(1,2)));
             api.status(created,201);id=api.json(created).get("lesson").get("id").asLong();
             api.status(editor.write("PUT","/admin/lessons/"+id,Map.of("title","Edited","description","Changed","position",99888,"wordIds",List.of(2,1))),200);
-            assertThat(api.json(editor.get("/lessons/"+id)).get("words").get(0).get("id").asLong()).isEqualTo(2);
+            assertThat(api.json(editor.get("/admin/lessons/"+id)).get("words").get(0).get("id").asLong()).isEqualTo(2);
             api.status(editor.write("DELETE","/admin/lessons/"+id,null),403);
             api.status(editor.write("POST","/admin/vocabulary",Map.of()),403);
         }finally{if(id>0)api.status(root.write("DELETE","/admin/lessons/"+id,null),204);}
