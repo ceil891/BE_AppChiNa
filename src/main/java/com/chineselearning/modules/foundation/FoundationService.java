@@ -61,8 +61,9 @@ public class FoundationService {
             AND NOT EXISTS(SELECT 1 FROM foundation_progress p WHERE p.user_id=:owner AND p.slug=earlier.slug AND p.completed_at IS NOT NULL)
             ORDER BY earlier.position,earlier.slug LIMIT 1
             """).param("owner",id).param("slug",slug).query(String.class).optional();
-        if(prerequisite.isPresent())throw problem(HttpStatus.FORBIDDEN,
-            "Hoàn thành bài \""+prerequisite.get()+"\" trước khi mở bài này."+(id==null?" Đăng nhập để lưu tiến độ.":""));
+        if(prerequisite.isPresent())throw problem(HttpStatus.FORBIDDEN, id==null
+            ? "Bạn chỉ được học một bài mẫu khi chưa đăng nhập. Đăng nhập để học các bài tiếp theo."
+            : "Hoàn thành bài \""+prerequisite.get()+"\" trước khi mở bài này.");
     }
     public boolean completedCurriculum(UUID id) {
         if(id==null)return false;
