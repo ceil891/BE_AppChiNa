@@ -1,0 +1,6 @@
+# Copy to ai-local.properties (ignored by Git), then fill the key locally.
+# Alternatively set GEMINI_API_KEY in the backend process environment.
+ai.gemini-api-key=${GEMINI_API_KEY:}
+ai.gemini-model=gemini-2.5-flash
+ai.daily-turns=20
+ai.global-daily-turns=200
